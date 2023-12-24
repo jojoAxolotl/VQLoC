@@ -129,9 +129,9 @@ if __name__ == '__main__':
     mode = 'test_unannotated' if args.eval else 'val'
     # annotation_path = os.path.join('/vision/hwjiang/episodic-memory/VQ2D/data', 'vq_{}.json'.format(mode))
     annotation_path = os.path.join(config.data_dir, 'vq_{}.json'.format(mode))
-    annotation_path = os.path.join('../dlcv/DLCV_vq2d_data/', 'vq_{}.json'.format(mode))
+    # annotation_path = os.path.join('../Meta/DLCV_vq2d_data/', 'vq_{}.json'.format(mode))
     # joko: 
-    # annotation_path = os.path.join('../DLCV-Fall-2023-Final-2-jokoandherfriends/DLCV_vq2d_data', 'vq_{}.json'.format(mode))
+    annotation_path = os.path.join('../DLCV-Fall-2023-Final-2-jokoandherfriends/DLCV_vq2d_data', 'vq_{}.json'.format(mode))
     with open(annotation_path) as fp:
         annotations = json.load(fp)
     clipwise_annotations_list = eval_utils.convert_annotations_to_clipwise_list(annotations)

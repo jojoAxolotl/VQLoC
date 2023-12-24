@@ -28,7 +28,8 @@ dataset:
 
 # model config
 model:
-  backbone_name: 'dinov2'
+  backbone_name: 'resnet50'
+  # backbone_name: 'dinov2'
   backbone_type: 'vitb14'
   bakcbone_use_mae_weight: False
   fix_backbone: True
@@ -40,7 +41,7 @@ model:
   window_transformer: 5
   positive_threshold: 0.3
   # best checkpoint
-  cpt_path: '3j3q9qsc1kovpwfxtnsful7pvdy234q6.tar'
+  # cpt_path: '3j3q9qsc1kovpwfxtnsful7pvdy234q6.tar'
 
 # loss config
 loss:

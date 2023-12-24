@@ -11,6 +11,8 @@ import math
 import torchvision
 from dataset import dataset_utils
 from model.mae import vit_base_patch16
+from r3m import load_r3m
+import torchvision.models as tmodels
 
 base_sizes=torch.tensor([[16, 16], [32, 32], [64, 64], [128, 128]], dtype=torch.float32)    # 4 types of size
 aspect_ratios=torch.tensor([0.5, 1, 2], dtype=torch.float32)                                # 3 types of aspect ratio
@@ -41,6 +43,14 @@ def build_backbone(config):
         cpt = torch.load('/vision/hwjiang/download/model_weight/mae_pretrain_vit_base.pth')['model']
         backbone.load_state_dict(cpt, strict=False)
         down_rate = 16
+        backbone_dim = 768
+    elif name == 'resnet50':
+        # resnet = tmodels.resnet50(pretrained=True)
+        # resnet = torch.nn.Sequential(*(list(resnet.children())[:-1]))
+        # backbone = resnet
+        r3m = load_r3m("resnet50")
+        backbone = r3m
+        down_rate = 32 
         backbone_dim = 768
     return backbone, down_rate, backbone_dim
 
@@ -235,6 +245,8 @@ class ClipMatcher(nn.Module):
             query_feat = torchvision.ops.roi_align(query_feat, roi_bbox, (h,w))
 
         # reduce channel size
+        print(query_feat.__len__)
+        print(clip_feat.size())
         all_feat = torch.cat([query_feat, clip_feat], dim=0)
         all_feat = self.reduce(all_feat)
         query_feat, clip_feat = all_feat.split([b, b*t], dim=0)
