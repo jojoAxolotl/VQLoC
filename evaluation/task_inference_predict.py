@@ -27,6 +27,8 @@ class Task:
         ]
         # self.clip_dir = '/vision/srama/Research/Ego4D/episodic-memory/VQ2D/data/clips_fullres'
         self.clip_dir = '../dlcv/DLCV_vq2d_data/clips'
+        # joko:
+        # self.clip_dir = '../DLCV-Fall-2023-Final-2-jokoandherfriends/DLCV_vq2d_data/clips'
 
     def run(self, model, config, device):
         clip_uid = self.annots[0]["clip_uid"]
