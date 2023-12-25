@@ -41,6 +41,7 @@ model:
   positive_threshold: 0.3
   # best checkpoint
   cpt_path: '3j3q9qsc1kovpwfxtnsful7pvdy234q6.tar'
+  use_text_features: True
 
 # loss config
 loss:
