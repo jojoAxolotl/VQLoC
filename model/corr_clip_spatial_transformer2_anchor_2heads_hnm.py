@@ -11,6 +11,7 @@ import math
 import torchvision
 from dataset import dataset_utils
 from model.mae import vit_base_patch16
+from model.clip_text_feature import CLIP
 
 base_sizes=torch.tensor([[16, 16], [32, 32], [64, 64], [128, 128]], dtype=torch.float32)    # 4 types of size
 aspect_ratios=torch.tensor([0.5, 1, 2], dtype=torch.float32)                                # 3 types of aspect ratio
@@ -108,6 +109,7 @@ class ClipMatcher(nn.Module):
                 )
             )
         self.CQ_corr_transformer = nn.ModuleList(self.CQ_corr_transformer)
+    
 
         # feature downsample layers
         self.num_head_layers, self.down_heads = int(math.log2(self.clip_feat_size_coarse)), []
@@ -129,6 +131,7 @@ class ClipMatcher(nn.Module):
                                           type=config.model.pe_transformer).unsqueeze(0)
         self.pe_3d = nn.parameter.Parameter(self.pe_3d)
 
+
         # spatial-temporal transformer layer
         self.feat_corr_transformer = []
         self.num_transformer = config.model.num_transformer
@@ -147,6 +150,13 @@ class ClipMatcher(nn.Module):
 
         # output head
         self.head = Head(in_dim=256, in_res=self.resolution_transformer, out_res=self.resolution_anchor_feat)
+
+        # clip
+        # self.device =
+        if config.model.use_text_features:
+            self.text_feature_extractor = CLIP()
+            self.text_project = nn.Linear(512, 256)
+
 
     def init_weights_linear(self, m):
         if type(m) == nn.Linear:
@@ -210,7 +220,7 @@ class ClipMatcher(nn.Module):
         return new_clip_feat, new_query_feat
 
 
-    def forward(self, clip, query, query_frame_bbox=None, training=False, fix_backbone=True):
+    def forward(self, clip, query, text, query_frame_bbox=None, training=False, fix_backbone=True):
         '''
         clip: in shape [b,t,c,h,w]
         query: in shape [b,c,h2,w2]
@@ -226,8 +236,8 @@ class ClipMatcher(nn.Module):
         else:
             query_feat = self.extract_feature(query)        # [b c h w]
             clip_feat = self.extract_feature(clip)          # (b t) c h w
-        h, w = clip_feat.shape[-2:]
 
+        h, w = clip_feat.shape[-2:]
         if torch.is_tensor(query_frame_bbox) and self.config.train.use_query_roi:
             idx_tensor = torch.arange(b, device=clip.device).float().view(-1, 1)
             query_frame_bbox = dataset_utils.recover_bbox(query_frame_bbox, h, w)
@@ -244,11 +254,43 @@ class ClipMatcher(nn.Module):
             b = b**2
         
         # find spatial correspondence between query-frame
+        # query_feat : torch.Size([3, 256, 32, 32])
         query_feat = rearrange(query_feat.unsqueeze(1).repeat(1,t,1,1,1), 'b t c h w -> (b t) (h w) c')  # [b*t,n,c]
+        # query_feat : torch.Size([6, 1024, 256])
+
+        # clip_feat : torch.Size([6, 256, 32, 32])
         clip_feat = rearrange(clip_feat, 'b c h w -> b (h w) c')                                         # [b*t,n,c]
+        # clip_feat : torch.Size([6, 1024, 256])
+
         for layer in self.CQ_corr_transformer:
             clip_feat = layer(clip_feat, query_feat)                                                     # [b*t,n,c]
+
+        # clip_feat : torch.Size([6, 1024, 256])
+            
         clip_feat = rearrange(clip_feat, 'b (h w) c -> b c h w', h=h, w=w)                               # [b*t,c,h,w]
+        # clip_feat : torch.Size([6, 256, 32, 32])
+
+        # add text cross attention
+        if self.config.model.use_text_features:
+            self.text_feature_extractor.load_device(clip.device)
+            text_feat = self.text_feature_extractor.text_feature(text)
+
+            # text_feat GOAL: [3, 512] ->  ([6, 1024, 256])
+            text_feat = rearrange(text_feat.unsqueeze(1).repeat(1,t,1), 'b t c -> (b t) c')
+            # [3, 512] ->  ([6, 512])
+            
+            text_feat = text_feat.to(torch.float32)
+            text_feat = self.text_project(text_feat)
+            # [6, 512] ->  ([6, 256])
+            text_feat = text_feat.unsqueeze(1).repeat(1,1,1)
+            # [6, 256] ->  ([6, 1, 256])
+
+            # find spatial correspondence between text-frame
+            clip_feat = rearrange(clip_feat, 'b c h w -> b (h w) c')                                         # [b*t,n,c]
+            for layer in self.CQ_corr_transformer:
+                clip_feat = layer(clip_feat, text_feat)                                                     # [b*t,n,c]
+            clip_feat = rearrange(clip_feat, 'b (h w) c -> b c h w', h=h, w=w)                               # [b*t,c,h,w]
+            # [6, 1024, 256]
 
         # down-size features and find spatial-temporal correspondence
         for head in self.down_heads:

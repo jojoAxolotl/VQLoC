@@ -41,6 +41,7 @@ model:
   window_transformer: 5
   positive_threshold: 0.2
   positive_topk: 5
+  use_text_features: True
 
 # loss config
 loss:

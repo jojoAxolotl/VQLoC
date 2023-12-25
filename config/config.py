@@ -53,6 +53,7 @@ config.model.window_transformer = 10
 config.model.positive_threshold = 0.2
 config.model.positive_topk = 5
 config.model.cpt_path = ''
+config.model.use_text_features = True
 
 # loss config
 config.loss = edict()
