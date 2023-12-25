@@ -11,6 +11,7 @@ import math
 import torchvision
 from dataset import dataset_utils
 from model.mae import vit_base_patch16
+import loralib as lora
 
 base_sizes=torch.tensor([[16, 16], [32, 32], [64, 64], [128, 128]], dtype=torch.float32)    # 4 types of size
 aspect_ratios=torch.tensor([0.5, 1, 2], dtype=torch.float32)                                # 3 types of aspect ratio
@@ -97,6 +98,7 @@ class ClipMatcher(nn.Module):
         # clip-query correspondence
         self.CQ_corr_transformer = []
         for _ in range(1):
+
             self.CQ_corr_transformer.append(
                 torch.nn.TransformerDecoderLayer(
                     d_model=256,
@@ -107,6 +109,19 @@ class ClipMatcher(nn.Module):
                     batch_first=True
                 )
             )
+            
+            if self.config.model.lora:
+                
+                cur_model = self.CQ_corr_transformer[_]
+                cur_model.linear1 = lora.Linear(cur_model.linear1.in_features, cur_model.linear1.out_features, r=16)
+                cur_model.linear2 = lora.Linear(cur_model.linear2.in_features, cur_model.linear2.out_features, r=16)
+                cur_model.self_attn.out_proj = lora.Linear(cur_model.self_attn.out_proj.in_features, cur_model.self_attn.out_proj.out_features, r=16)
+                cur_model.multihead_attn.out_proj = lora.Linear(cur_model.multihead_attn.out_proj.in_features, cur_model.multihead_attn.out_proj.out_features, r=16)
+                
+                
+
+            
+
         self.CQ_corr_transformer = nn.ModuleList(self.CQ_corr_transformer)
 
         # feature downsample layers
@@ -142,6 +157,14 @@ class ClipMatcher(nn.Module):
                         activation='gelu',
                         batch_first=True
                 ))
+            
+            if self.config.model.lora:
+                
+                cur_model = self.feat_corr_transformer[_]
+                cur_model.linear1 = lora.Linear(cur_model.linear1.in_features, cur_model.linear1.out_features, r=16)
+                cur_model.linear2 = lora.Linear(cur_model.linear2.in_features, cur_model.linear2.out_features, r=16)
+                cur_model.self_attn.out_proj = lora.Linear(cur_model.self_attn.out_proj.in_features, cur_model.self_attn.out_proj.out_features, r=16)
+
         self.feat_corr_transformer = nn.ModuleList(self.feat_corr_transformer)
         self.temporal_mask = None
 

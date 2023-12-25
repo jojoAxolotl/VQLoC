@@ -22,6 +22,7 @@ from func.train_anchor import train_epoch, validate
 
 import transformers
 import wandb
+import loralib as lora
 
 
 def parse_args():
@@ -81,6 +82,10 @@ def main():
     # get model
     model = ClipMatcher(config).to(device)
     #model = torch.compile(model)
+    
+    if config.model.lora:
+        lora.mark_only_lora_as_trainable(model)
+
 
     # get optimizer
     optimizer = train_utils.get_optimizer(config, model)

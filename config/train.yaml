@@ -41,6 +41,8 @@ model:
   window_transformer: 5
   positive_threshold: 0.2
   positive_topk: 5
+  lora: True
+  amp: False
 
 # loss config
 loss:
@@ -53,7 +55,7 @@ loss:
 
 # training config
 train:
-  resume: True
+  resume: False
   batch_size: 3
   total_iteration: 60000
   lr: 0.0003
