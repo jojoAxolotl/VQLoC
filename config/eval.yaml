@@ -50,6 +50,7 @@ model:
 
 # loss config
 loss:
+  iou: 'giou'
   weight_bbox_center: 1.0
   weight_bbox_hw: 1.0
   weight_bbox_giou: 0.3

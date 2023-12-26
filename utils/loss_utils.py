@@ -66,7 +66,10 @@ def get_losses_with_anchor(config, preds, gts):
         # bbox giou loss
         pred_bbox = rearrange(pred_bbox, 'b t N c -> (b t N) c')
         gt_bbox_replicate = rearrange(gt_bbox.unsqueeze(2).repeat(1,1,N,1), 'b t N c -> (b t N) c')
-        iou, giou, loss_giou = GiouLoss(pred_bbox, gt_bbox_replicate, mask=loss_mask.bool().squeeze())
+        if config.loss.iou == 'wiou':
+            iou, giou, loss_giou = WiouLoss(pred_bbox, gt_bbox_replicate, mask=loss_mask.bool().squeeze())
+        else:
+            iou, giou, loss_giou = GiouLoss(pred_bbox, gt_bbox_replicate, mask=loss_mask.bool().squeeze())
     else:
         pred_bbox = rearrange(pred_bbox, 'b t N c -> (b t N) c')
         loss_center = torch.tensor(0.).cuda()
@@ -147,8 +150,11 @@ def get_losses_head(config, refine_prob, gts, preds_top):
 
     refine_prob = refine_prob.reshape(-1)
     pred_bbox = preds_top['bbox'].reshape(-1,4)
-
-    iou, giou, _ = GiouLoss(pred_bbox, gt_bbox)     # [b*t]
+    
+    if config.loss.iou == 'wiou':
+        iou, giou, _ = WiouLoss(pred_bbox, gt_bbox)     # [b*t]
+    else:
+        iou, giou, _ = GiouLoss(pred_bbox, gt_bbox)     # [b*t]
     gt_prob_refine = (iou > config.model.positive_threshold).float()
 
     weight = torch.tensor(config.loss.prob_bce_weight).to(gt_prob.device)
@@ -184,7 +190,10 @@ def get_losses(config, preds, gts):
     loss_center = F.l1_loss(pred_center[gt_prob.bool()], gt_center[gt_prob.bool()])
     loss_hw = F.l1_loss(pred_hw[gt_prob.bool()], gt_hw[gt_prob.bool()])
     #loss_bbox = F.l1_loss(pred_bbox[gt_prob.bool()], gt_bbox[gt_prob.bool()])
-    iou, giou, loss_giou = GiouLoss(pred_bbox, gt_bbox, mask=gt_prob.bool())
+    if config.loss.iou == 'wiou':
+        iou, giou, loss_giou = WiouLoss(pred_bbox, gt_bbox, mask=gt_prob.bool())
+    else:
+        iou, giou, loss_giou = GiouLoss(pred_bbox, gt_bbox, mask=gt_prob.bool())
     if 'bbox_ratio' in preds.keys():
         pred_ratio = preds['bbox_ratio'].reshape(-1)
         loss_ratio = F.l1_loss(pred_ratio[gt_prob.bool()], gt_ratio[gt_prob.bool()])
@@ -266,6 +275,45 @@ def GiouLoss(bbox_p, bbox_g, mask=None):
     else:
         loss_giou = torch.mean(1.0 - giou)
     return iou, giou, loss_giou
+
+
+def WiouLoss(bbox_p, bbox_g, mask=None):
+    """
+    Calculate Weighted IoU (Wiou) loss.
+
+    :param bbox_p: Predicted bounding boxes (N, 4) (x1, y1, x2, y2).
+    :param bbox_g: Ground truth bounding boxes (N, 4) (x1, y1, x2, y2).
+    :param mask: Ground truth of valid instances, in shape [N].
+    :return: IoU, Wiou, and Wiou loss.
+    """
+    device = bbox_p.device
+
+    # Calculate central points and bounding box sizes
+    pred_xy = (bbox_p[:, :2] + bbox_p[:, 2:4]) / 2
+    pred_wh = bbox_p[:, 2:4] - bbox_p[:, :2]
+
+    target_xy = (bbox_g[:, :2] + bbox_g[:, 2:4]) / 2
+    target_wh = bbox_g[:, 2:4] - bbox_g[:, :2]
+
+    # Calculate common components
+    d_center = pred_xy - target_xy
+    l2_center = torch.square(d_center).sum(dim=-1)
+    wh_box = torch.maximum(bbox_p[:, 2:4], bbox_g[:, 2:4]) - torch.minimum(bbox_p[:, :2], bbox_g[:, :2])
+    l2_box = torch.square(wh_box).sum(dim=-1)
+
+    # Calculate IoU
+    s_inter = torch.prod(torch.relu(torch.minimum(bbox_p[:, 2:4], bbox_g[:, 2:4]) - torch.maximum(bbox_p[:, :2], bbox_g[:, :2])), dim=-1)
+    s_union = torch.prod(pred_wh, dim=-1) + torch.prod(target_wh, dim=-1) - s_inter
+    iou = 1 - s_inter / (s_union + 1e-6)
+
+    # Calculate Wiou
+    dist = torch.exp(l2_center / l2_box.detach())
+    wiou = dist * iou
+
+    # Calculate Wiou loss
+    loss_wiou = 1 - wiou if mask is None else torch.mean(1 - wiou[mask])
+
+    return iou, wiou, loss_wiou
 
 
 def get_bbox_ratio(hw, device):
