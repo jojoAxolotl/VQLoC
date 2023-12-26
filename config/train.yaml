@@ -1,6 +1,6 @@
 exp_name: 'train'
 exp_group: 'vq2d'
-output_dir: './output/'
+output_dir: './output_lora_text/'
 log_dir: './log'
 workers: 16
 print_freq: 100
@@ -43,9 +43,8 @@ model:
   positive_topk: 5
   lora: True
   amp: False
-  cpt_path: ''
-  fpn: True # False
-
+  cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  fpn: False # False
   use_text_features: True
 
 # loss config

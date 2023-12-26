@@ -123,9 +123,35 @@ class ClipMatcher(nn.Module):
                 
                 
 
-            
-
         self.CQ_corr_transformer = nn.ModuleList(self.CQ_corr_transformer)
+
+        # clip-query correspondence
+        self.CT_text_corr_transformer = []
+
+        for _ in range(1):
+
+            self.CT_text_corr_transformer.append(
+                torch.nn.TransformerDecoderLayer(
+                    d_model=256,
+                    nhead=4,
+                    dim_feedforward=1024,
+                    dropout=0.0,
+                    activation='gelu',
+                    batch_first=True
+                )
+            )
+            
+            if self.config.model.lora:
+                
+                cur_model = self.CT_text_corr_transformer[_]
+                cur_model.linear1 = lora.Linear(cur_model.linear1.in_features, cur_model.linear1.out_features, r=16)
+                cur_model.linear2 = lora.Linear(cur_model.linear2.in_features, cur_model.linear2.out_features, r=16)
+                cur_model.self_attn.out_proj = lora.Linear(cur_model.self_attn.out_proj.in_features, cur_model.self_attn.out_proj.out_features, r=16)
+                cur_model.multihead_attn.out_proj = lora.Linear(cur_model.multihead_attn.out_proj.in_features, cur_model.multihead_attn.out_proj.out_features, r=16)
+                
+                
+
+        self.CT_text_corr_transformer = nn.ModuleList(self.CT_text_corr_transformer)
     
 
         # feature downsample layers
@@ -324,7 +350,7 @@ class ClipMatcher(nn.Module):
 
             # find spatial correspondence between text-frame
             clip_feat = rearrange(clip_feat, 'b c h w -> b (h w) c')                                         # [b*t,n,c]
-            for layer in self.CQ_corr_transformer:
+            for layer in self.CT_text_corr_transformer:
                 clip_feat = layer(clip_feat, text_feat)                                                     # [b*t,n,c]
             clip_feat = rearrange(clip_feat, 'b (h w) c -> b c h w', h=h, w=w)                               # [b*t,c,h,w]
             # [6, 1024, 256]

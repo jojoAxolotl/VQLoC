@@ -121,14 +121,15 @@ def validate(config, loader, model, epoch, output_dir, device, rank, wandb_run=N
             sample = exp_utils.dict_to_cuda(sample)
             sample = dataset_utils.process_data(config, sample, split='val', device=device)     # normalize and data augmentations on GPU
 
-            clips, queries = sample['clip'], sample['query']
+            clips, queries, texts = sample['clip'], sample['query'], sample['object_title']
             if config.train.use_query_roi and 'query_frame' in sample.keys():
                 preds = model(clips, 
                             sample['query_frame'], 
+                            texts,
                             query_frame_bbox=sample['query_frame_bbox'], 
                             training=False, fix_backbone=config.model.fix_backbone)
             else:
-                preds = model(clips, queries, training=False, fix_backbone=config.model.fix_backbone)
+                preds = model(clips, queries, texts ,training=False, fix_backbone=config.model.fix_backbone)
             results, preds_top = val_performance(config, preds, sample)
             try:
                 for k, v in results.items():

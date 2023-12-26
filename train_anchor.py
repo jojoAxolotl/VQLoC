@@ -87,6 +87,13 @@ def main():
     if config.model.lora:
         lora.mark_only_lora_as_trainable(model)
 
+    for name, param in model.named_parameters():
+        if 'text' in name:
+            param.requires_grad = True
+    
+    # for name, param in model.named_parameters():
+        # print(f"{name} : {param.requires_grad}")
+
 
     if config.model.cpt_path != "":
         checkpoint = torch.load(config.model.cpt_path, map_location='cpu')
@@ -144,8 +151,8 @@ def main():
     start_ep = ep_resume if ep_resume is not None else 0
     end_ep = 100000000 #int(config.train.total_iteration / len(train_loader)) + 1
     
-    for name, param in model.named_parameters():
-        print(f"{name} : {param.requires_grad}")
+    # for name, param in model.named_parameters():
+    #     print(f"{name} : {param.requires_grad}")
 
     # train
     for epoch in tqdm(range(start_ep, end_ep)):
