@@ -18,8 +18,8 @@ dataset:
   query_size: 448
   clip_size_fine: 448
   clip_size_coarse: 448
-  clip_num_frames: 15
-  clip_num_frames_val: 15
+  clip_num_frames: 30
+  clip_num_frames_val: 30
   clip_sampling: 'rand'
   clip_reader: 'decord_random'
   clip_reader_val: 'decord_balance'
@@ -44,7 +44,7 @@ model:
   lora: True
   amp: False
   cpt_path: ''
-  fpn: True
+  fpn: True # False
 
 
 # loss config

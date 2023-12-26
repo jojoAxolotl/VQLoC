@@ -29,7 +29,7 @@ def vis_pred_clip(sample, pred, iter_num, output_dir, subfolder='train'):
     for i in range(B):
         frames = []
         cur_clip, cur_query = clip[i], query[i]                                     # [T,3,H,W], [3,H2,W2]
-        cur_bbox, cur_bbox_pred = bbox[i], bbox_pred[i].clamp(min=0.0, max=1.0)     # [T,4]
+        cur_bbox, cur_bbox_pred = bbox[i], bbox_pred[i].cuda().clamp(min=0.0, max=1.0)     # [T,4]
         cur_prob, cur_prob_pred = prob[i], prob_pred[i]                             # [T]
 
         cur_query = cur_query.clamp(min=0.0, max=1.0).permute(1,2,0).numpy()        # [H2,W2,3]
@@ -38,7 +38,7 @@ def vis_pred_clip(sample, pred, iter_num, output_dir, subfolder='train'):
             img = cur_clip[j].clamp(min=0.0, max=1.0)                               
             img = img.permute(1,2,0).numpy()                # [H,W,3]
             fig, ax = plt.subplots(1,2, dpi=100)
-            fig.suptitle('Prob: gt {:.3f}, pred {:.3f}'.format(cur_prob[j].item(), torch.sigmoid(cur_prob_pred[j]).item()), fontsize=20)
+            fig.suptitle('Prob: gt {:.3f}, pred {:.3f}'.format(cur_prob[j].item(), torch.sigmoid(cur_prob_pred[j].cuda()).item()), fontsize=20)
             ax[0].imshow(img)
             ax[1].imshow(cur_query)
             if cur_prob[j].item() > 0.5:
@@ -53,7 +53,7 @@ def vis_pred_clip(sample, pred, iter_num, output_dir, subfolder='train'):
                                          draw_bbox_pred[3]-draw_bbox_pred[1], draw_bbox_pred[2]-draw_bbox_pred[0], 
                                          linewidth=1, edgecolor='g', facecolor='none')
                 ax[0].add_patch(rect)
-            if torch.sigmoid(cur_prob_pred[j]).item() > 0.5:
+            if torch.sigmoid(cur_prob_pred[j].cuda()).item() > 0.5:
                 draw_bbox_pred = dataset_utils.recover_bbox(cur_bbox_pred[j], H, W)  # [4]
                 rect = patches.Rectangle((draw_bbox_pred[1], draw_bbox_pred[0]), 
                                          draw_bbox_pred[3]-draw_bbox_pred[1], draw_bbox_pred[2]-draw_bbox_pred[0], 
@@ -79,7 +79,7 @@ def vis_pred_scores(sample, pred, iter_num, output_dir, subfolder='train'):
     B, T = prob.shape
 
     for i in range(B):
-        cur_prob, cur_prob_pred = prob[i].numpy(), torch.sigmoid(prob_pred[i]).numpy()     # [T]
+        cur_prob, cur_prob_pred = prob[i].numpy(), torch.sigmoid(prob_pred[i].cuda()).cpu().numpy()     # [T]
         x = np.arange(T)
         plt.plot(x, cur_prob_pred, marker=None, color='b', label='pred')
         plt.plot(x, cur_prob, marker=None, color='r', label='gt')
