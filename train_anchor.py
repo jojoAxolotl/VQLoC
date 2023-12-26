@@ -23,6 +23,7 @@ from func.train_anchor import train_epoch, validate
 import transformers
 import wandb
 import loralib as lora
+from tqdm import tqdm
 
 
 def parse_args():
@@ -87,6 +88,10 @@ def main():
         lora.mark_only_lora_as_trainable(model)
 
 
+    if config.model.cpt_path != "":
+        checkpoint = torch.load(config.model.cpt_path, map_location='cpu')
+        model.load_state_dict(checkpoint["state_dict"], strict=False)
+
     # get optimizer
     optimizer = train_utils.get_optimizer(config, model)
     # schedular = train_utils.get_schedular(config, optimizer)
@@ -138,9 +143,12 @@ def main():
  
     start_ep = ep_resume if ep_resume is not None else 0
     end_ep = 100000000 #int(config.train.total_iteration / len(train_loader)) + 1
+    
+    for name, param in model.named_parameters():
+        print(f"{name} : {param.requires_grad}")
 
     # train
-    for epoch in range(start_ep, end_ep):
+    for epoch in tqdm(range(start_ep, end_ep)):
         train_sampler.set_epoch(epoch)
         train_epoch(config,
                     loader=train_loader,
@@ -166,7 +174,7 @@ def main():
                         'schedular': schedular.state_dict(),
                         'scaler': scaler.state_dict(),
                     }, 
-                    checkpoint=output_dir, filename="cpt_last.pth.tar")
+                    checkpoint=output_dir, filename="cpt_last_vit_fpn.pth.tar")
 
         if epoch % 5 == 0:
             print('Doing validation...')
@@ -193,7 +201,7 @@ def main():
                         'scaler': scaler.state_dict(),
                         'best_iou': best_iou,
                     }, 
-                    checkpoint=output_dir, filename="cpt_best_iou.pth.tar")
+                    checkpoint=output_dir, filename="cpt_best_iou_vit_fpn.pth.tar")
 
             if prob > best_prob:
                 best_prob = prob
@@ -207,7 +215,7 @@ def main():
                         'scaler': scaler.state_dict(),
                         'best_prob': best_prob,
                     }, 
-                    checkpoint=output_dir, filename="cpt_best_prob.pth.tar")
+                    checkpoint=output_dir, filename="cpt_best_prob_vit_fpn.pth.tar")
 
             logger.info('Rank {}, best iou: {} (current {}), best probability accuracy: {} (current {})'.format(local_rank, best_iou, iou, best_prob, prob))
         dist.barrier()

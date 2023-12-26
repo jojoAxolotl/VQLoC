@@ -55,6 +55,7 @@ config.model.positive_topk = 5
 config.model.cpt_path = ''
 config.model.lora = True
 config.model.amp = False
+config.model.fpn = False
 
 # loss config
 config.loss = edict()
