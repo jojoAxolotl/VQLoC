@@ -35,16 +35,17 @@ def train_epoch(config, loader, model, optimizer, schedular, scaler, epoch, outp
         end = time.time()
 
         # reconstruction loss
-        clips, queries = sample['clip'], sample['query']
-        # if config.model.amp:
+        clips, queries, texts = sample['clip'], sample['query'], sample['object_title']
+        # with autocast():
         with autocast(enabled=config.model.amp):
             if config.train.use_query_roi and 'query_frame' in sample.keys():
                 preds = model(clips, 
-                            sample['query_frame'], 
+                            sample['query_frame'],
+                            texts, 
                             query_frame_bbox=sample['query_frame_bbox'], 
                             training=True, fix_backbone=config.model.fix_backbone)
             else:
-                preds = model(clips, queries, training=True, fix_backbone=config.model.fix_backbone)
+                preds = model(clips, queries, texts, training=True, fix_backbone=config.model.fix_backbone)
         time_meters.add_loss_value('Prediction time', time.time() - end)
         end = time.time()
 

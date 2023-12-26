@@ -166,6 +166,7 @@ class EgoTracksDataset(QueryVideoDataset):
 
     def __getitem__(self, idx):
         sample = self.annotations[idx]
+        # print("sample: ", sample.keys())
         video_path = self._get_video_path(sample)
         query_path = self._get_query_path(sample)
         clip_path = self._get_clip_path(sample)
@@ -216,7 +217,8 @@ class EgoTracksDataset(QueryVideoDataset):
             'clip_h': torch.tensor(clip_h),
             'clip_w': torch.tensor(clip_w),
             'query_frame': query_frame.float(),             # [3,H,W]
-            'query_frame_bbox': query_frame_bbox.float()    # [4]
+            'query_frame_bbox': query_frame_bbox.float(),   # [4]
+            "object_title": sample["object_title"]
         }
         return results
 

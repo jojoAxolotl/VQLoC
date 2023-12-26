@@ -56,6 +56,7 @@ config.model.cpt_path = ''
 config.model.lora = True
 config.model.amp = False
 config.model.fpn = False
+config.model.use_text_features = True
 
 # loss config
 config.loss = edict()

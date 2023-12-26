@@ -46,6 +46,7 @@ model:
   cpt_path: ''
   fpn: True # False
 
+  use_text_features: True
 
 # loss config
 loss:

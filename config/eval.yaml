@@ -46,6 +46,7 @@ model:
   # cpt_path: 'output/ego4d_egotracks/train/train/cpt_best_iou_vit_fpn.pth.tar'
   cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
   fpn: False
+  use_text_features: True
 
 # loss config
 loss:
