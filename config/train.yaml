@@ -1,15 +1,15 @@
 exp_name: 'train'
 exp_group: 'vq2d'
-output_dir: './output_lora_text/'
+output_dir: './output_lora_wiou/'
 log_dir: './log'
 workers: 16
 print_freq: 100
 vis_freq: 1000
 eval_vis_freq: 100
 seed: 42
-data_dir: '../Meta/data'
-clip_dir: '../Meta/DLCV_vq2d_data/clips'
-meta_dir: '../Meta/DLCV_vq2d_data'
+data_dir: '../data'
+clip_dir: '../DLCV_vq2d_data/clips'
+meta_dir: '../DLCV_vq2d_data'
 
 # dataset config
 dataset:
@@ -43,13 +43,14 @@ model:
   positive_topk: 5
   lora: True
   amp: False
-  cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  # cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  cpt_path: '3j3q9qsc1kovpwfxtnsful7pvdy234q6.tar'
   fpn: False # False
   use_text_features: True
 
 # loss config
 loss:
-  iou: 'giou'
+  iou: 'wiou'
   weight_bbox_center: 1.0
   weight_bbox_hw: 1.0
   weight_bbox_giou: 0.3
@@ -60,7 +61,7 @@ loss:
 # training config
 train:
   resume: False
-  batch_size: 3
+  batch_size: 1
   total_iteration: 60000
   lr: 0.0003
   weight_decay: 0.005

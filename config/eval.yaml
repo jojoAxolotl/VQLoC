@@ -1,14 +1,14 @@
 exp_name: 'eval'
 exp_group: 'vq2d'
-output_dir: './output_lora_logs/'
+output_dir: './output_lora_wiou_output/'
 log_dir: './log'
 workers: 0
 print_freq: 100
 vis_freq: 1000
 eval_vis_freq: 100
 seed: 42
-data_dir: '../Meta/DLCV_vq2d_data'
-clip_dir: '../Meta/DLCV_vq2d_data/clips'
+data_dir: '../data'
+clip_dir: '../DLCV_vq2d_data/clips'
 # meta_dir: '../Meta/DLCV_vq2d_data'
 
 # dataset config
@@ -44,13 +44,14 @@ model:
   # best checkpoint
   # cpt_path: '3j3q9qsc1kovpwfxtnsful7pvdy234q6.tar'
   # cpt_path: 'output/ego4d_egotracks/train/train/cpt_best_iou_vit_fpn.pth.tar'
-  cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  # cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  cpt_path: 'output_lora_wiou/ego4d_egotracks/train/train/cpt_best_iou_vit_fpn.pth.tar'
   fpn: False
-  use_text_features: True
+  use_text_features: False
 
 # loss config
 loss:
-  iou: 'giou'
+  iou: 'wiou'
   weight_bbox_center: 1.0
   weight_bbox_hw: 1.0
   weight_bbox_giou: 0.3

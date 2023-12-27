@@ -60,6 +60,7 @@ config.model.use_text_features = True
 
 # loss config
 config.loss = edict()
+config.loss.iou = 'giou'
 config.loss.weight_bbox = 1.0
 config.loss.weight_bbox_center = 1.0
 config.loss.weight_bbox_hw = 1.0

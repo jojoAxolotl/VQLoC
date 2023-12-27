@@ -242,12 +242,16 @@ def GiouLoss(bbox_p, bbox_g, mask=None):
     x2p = torch.maximum(bbox_p[:, 0], bbox_p[:, 2]).reshape(-1,1)
     y1p = torch.minimum(bbox_p[:, 1], bbox_p[:, 3]).reshape(-1,1)
     y2p = torch.maximum(bbox_p[:, 1], bbox_p[:, 3]).reshape(-1,1)
+    # print("x1p: {}, x2p: {}, y1p: {}, y2p: {}".format(x1p, x2p, y1p, y2p))
 
     bbox_p = torch.cat([x1p, y1p, x2p, y2p], axis=1)
+    # print("bbox_p: {}".format(bbox_p))
     # calc area of Bg
     area_p = (bbox_p[:, 2] - bbox_p[:, 0]) * (bbox_p[:, 3] - bbox_p[:, 1])
+    # print("area_p: {}".format(area_p))
     # calc area of Bp
     area_g = (bbox_g[:, 2] - bbox_g[:, 0]) * (bbox_g[:, 3] - bbox_g[:, 1])
+    # print("area_g: {}".format(area_g))
 
     # cal intersection
     x1I = torch.maximum(bbox_p[:, 0], bbox_g[:, 0])
@@ -255,20 +259,27 @@ def GiouLoss(bbox_p, bbox_g, mask=None):
     x2I = torch.minimum(bbox_p[:, 2], bbox_g[:, 2])
     y2I = torch.minimum(bbox_p[:, 3], bbox_g[:, 3])
     I = torch.maximum((y2I - y1I), torch.tensor([0.0]).to(device)) * torch.maximum((x2I - x1I), torch.tensor([0.0]).to(device))
+    # print("x1I: {}, y1I: {}, x2I: {}, y2I: {}".format(x1I, y1I, x2I, y2I))
+    # print("I: {}".format(I))
 
     # find enclosing box
     x1C = torch.minimum(bbox_p[:, 0], bbox_g[:, 0])
     y1C = torch.minimum(bbox_p[:, 1], bbox_g[:, 1])
     x2C = torch.maximum(bbox_p[:, 2], bbox_g[:, 2])
     y2C = torch.maximum(bbox_p[:, 3], bbox_g[:, 3])
+    # print("x1C: {}, y1C: {}, x2C: {}, y2C: {}".format(x1C, y1C, x2C, y2C))
 
     # calc area of Bc
     area_c = (x2C - x1C) * (y2C - y1C)
+    # print("area_c: {}".format(area_c))
     U = area_p + area_g - I
+    # print("U: {}".format(U))
     iou = 1.0 * I / (U + 1e-6)
+    # print("iou: {}".format(iou))
 
     # Giou
     giou = iou - (area_c - U) / area_c
+    # print("giou: {}".format(giou))
     
     if torch.is_tensor(mask):
         loss_giou = torch.mean(1.0 - giou[mask])
@@ -277,23 +288,88 @@ def GiouLoss(bbox_p, bbox_g, mask=None):
     return iou, giou, loss_giou
 
 
-def WiouLoss(bbox_p, bbox_g, mask=None):
-    """
-    Calculate Weighted IoU (Wiou) loss.
+# def WiouLoss(bbox_p, bbox_g, mask=None):
+#     """
+#     Calculate Weighted IoU (Wiou) loss.
 
-    :param bbox_p: Predicted bounding boxes (N, 4) (x1, y1, x2, y2).
-    :param bbox_g: Ground truth bounding boxes (N, 4) (x1, y1, x2, y2).
-    :param mask: Ground truth of valid instances, in shape [N].
-    :return: IoU, Wiou, and Wiou loss.
-    """
+#     :param bbox_p: Predicted bounding boxes (N, 4) (x1, y1, x2, y2).
+#     :param bbox_g: Ground truth bounding boxes (N, 4) (x1, y1, x2, y2).
+#     :param mask: Ground truth of valid instances, in shape [N].
+#     :return: IoU, Wiou, and Wiou loss.
+#     """
+#     device = bbox_p.device
+
+#     # Calculate central points and bounding box sizes
+#     pred_xy = (bbox_p[:, :2] + bbox_p[:, 2:4]) / 2
+#     pred_wh = bbox_p[:, 2:4] - bbox_p[:, :2]
+
+#     target_xy = (bbox_g[:, :2] + bbox_g[:, 2:4]) / 2
+#     target_wh = bbox_g[:, 2:4] - bbox_g[:, :2]
+
+#     # Calculate common components
+#     d_center = pred_xy - target_xy
+#     l2_center = torch.square(d_center).sum(dim=-1)
+#     wh_box = torch.maximum(bbox_p[:, 2:4], bbox_g[:, 2:4]) - torch.minimum(bbox_p[:, :2], bbox_g[:, :2])
+#     l2_box = torch.square(wh_box).sum(dim=-1)
+
+#     # Calculate IoU
+#     s_inter = torch.prod(torch.relu(torch.minimum(bbox_p[:, 2:4], bbox_g[:, 2:4]) - torch.maximum(bbox_p[:, :2], bbox_g[:, :2])), dim=-1)
+#     s_union = torch.prod(pred_wh, dim=-1) + torch.prod(target_wh, dim=-1) - s_inter
+#     iou = 1 - s_inter / (s_union + 1e-6)
+
+#     # Calculate Wiou
+#     dist = torch.exp(l2_center / l2_box.detach())
+#     wiou = dist * iou
+
+#     # Calculate Wiou loss
+#     loss_wiou = 1 - wiou if mask is None else torch.mean(1 - wiou[mask])
+
+#     return iou, wiou, loss_wiou
+
+
+def WiouLoss(bbox_p, bbox_g, mask=None):
     device = bbox_p.device
+
+    # Ensure predict's bbox form
+    x1p = torch.minimum(bbox_p[:, 0], bbox_p[:, 2]).reshape(-1, 1)
+    x2p = torch.maximum(bbox_p[:, 0], bbox_p[:, 2]).reshape(-1, 1)
+    y1p = torch.minimum(bbox_p[:, 1], bbox_p[:, 3]).reshape(-1, 1)
+    y2p = torch.maximum(bbox_p[:, 1], bbox_p[:, 3]).reshape(-1, 1)
+    # print("x1p: {}, x2p: {}, y1p: {}, y2p: {}".format(x1p, x2p, y1p, y2p))
+
+    bbox_p = torch.cat([x1p, y1p, x2p, y2p], axis=1)
+    # print("bbox_p: {}".format(bbox_p))
+    # Calculate area of Bg
+    area_p = (bbox_p[:, 2] - bbox_p[:, 0]) * (bbox_p[:, 3] - bbox_p[:, 1])
+    # print("area_p: {}".format(area_p))
+    # Calculate area of Bp
+    area_g = (bbox_g[:, 2] - bbox_g[:, 0]) * (bbox_g[:, 3] - bbox_g[:, 1])
+    # print("area_g: {}".format(area_g))
+    # Calculate intersection
+    x1I = torch.maximum(bbox_p[:, 0], bbox_g[:, 0])
+    y1I = torch.maximum(bbox_p[:, 1], bbox_g[:, 1])
+    x2I = torch.minimum(bbox_p[:, 2], bbox_g[:, 2])
+    y2I = torch.minimum(bbox_p[:, 3], bbox_g[:, 3])
+    # print("x1I: {}, y1I: {}, x2I: {}, y2I: {}".format(x1I, y1I, x2I, y2I))
+    width_I = torch.maximum(torch.tensor(0.0).to(device), x2I - x1I)
+    height_I = torch.maximum(torch.tensor(0.0).to(device), y2I - y1I)
+    # print("width_I: {}, height_I: {}".format(width_I, height_I))
+    
+    # Calculate the intersection area
+    s_inter = width_I * height_I
+    # print("s_inter: {}".format(s_inter))
+
+    # Calculate union
+    U = area_p + area_g - s_inter
+    # print("U: {}".format(U))
+
+    # Calculate IoU
+    iou = 1.0 * s_inter / (U + 1e-6)
+    # print("iou: {}".format(iou))
 
     # Calculate central points and bounding box sizes
     pred_xy = (bbox_p[:, :2] + bbox_p[:, 2:4]) / 2
-    pred_wh = bbox_p[:, 2:4] - bbox_p[:, :2]
-
     target_xy = (bbox_g[:, :2] + bbox_g[:, 2:4]) / 2
-    target_wh = bbox_g[:, 2:4] - bbox_g[:, :2]
 
     # Calculate common components
     d_center = pred_xy - target_xy
@@ -301,19 +377,22 @@ def WiouLoss(bbox_p, bbox_g, mask=None):
     wh_box = torch.maximum(bbox_p[:, 2:4], bbox_g[:, 2:4]) - torch.minimum(bbox_p[:, :2], bbox_g[:, :2])
     l2_box = torch.square(wh_box).sum(dim=-1)
 
-    # Calculate IoU
-    s_inter = torch.prod(torch.relu(torch.minimum(bbox_p[:, 2:4], bbox_g[:, 2:4]) - torch.maximum(bbox_p[:, :2], bbox_g[:, :2])), dim=-1)
-    s_union = torch.prod(pred_wh, dim=-1) + torch.prod(target_wh, dim=-1) - s_inter
-    iou = 1 - s_inter / (s_union + 1e-6)
-
-    # Calculate Wiou
+    # Weighted IoU (WIoU)
+    # dist = torch.exp(((bbox_p[..., 2:4] - bbox_p[..., :2]) / (bbox_g[..., 2:4] - bbox_g[..., :2])).norm(dim=-1).detach())
     dist = torch.exp(l2_center / l2_box.detach())
+    # print('bbox_p[..., 2:4] - bbox_p[..., :2]', bbox_p[..., 2:4],bbox_p[..., :2])
+    # print("dist: {}".format(dist))
     wiou = dist * iou
+    # print("wiou: {}".format(wiou))
 
-    # Calculate Wiou loss
-    loss_wiou = 1 - wiou if mask is None else torch.mean(1 - wiou[mask])
+    # Calculate loss for WIoU
+    if torch.is_tensor(mask):
+        loss_wiou = torch.mean(1.0 - wiou[mask])
+    else:
+        loss_wiou = torch.mean(1.0 - wiou)
 
     return iou, wiou, loss_wiou
+
 
 
 def get_bbox_ratio(hw, device):

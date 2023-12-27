@@ -79,9 +79,11 @@ def main():
     #     })
     # else:
     wandb_run = None
-
+    print(config)
     # get model
     model = ClipMatcher(config).to(device)
+    print(model)
+    exit()
     #model = torch.compile(model)
     
     if config.model.lora:
