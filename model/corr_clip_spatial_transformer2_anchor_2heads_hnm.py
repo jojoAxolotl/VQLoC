@@ -15,6 +15,10 @@ import loralib as lora
 
 from model.SimpleFeaturePyramid import SimpleFeaturePyramid
 from model.clip_text_feature import CLIP
+from r3m import load_r3m
+import torchvision.models as tmodels
+from torchvision.models._utils import IntermediateLayerGetter
+from torchvision.ops.feature_pyramid_network import FeaturePyramidNetwork, LastLevelMaxPool
 
 base_sizes=torch.tensor([[16, 16], [32, 32], [64, 64], [128, 128]], dtype=torch.float32)    # 4 types of size
 aspect_ratios=torch.tensor([0.5, 1, 2], dtype=torch.float32)                                # 3 types of aspect ratio
@@ -46,6 +50,13 @@ def build_backbone(config):
         backbone.load_state_dict(cpt, strict=False)
         down_rate = 16
         backbone_dim = 768
+    elif name == 'resnet50':
+        # resnet = tmodels.resnet50(pretrained=True)
+        # resnet = torch.nn.Sequential(*(list(resnet.children())[:-1]))
+        # backbone = resnet
+        backbone = load_r3m("resnet50")
+        down_rate = 32 
+        backbone_dim = 768
     return backbone, down_rate, backbone_dim
 
 
@@ -75,6 +86,9 @@ class ClipMatcher(nn.Module):
                                                         num_regions=[self.resolution_anchor_feat, self.resolution_anchor_feat])
         self.anchors_xyhw = self.anchors_xyhw / self.clip_size_coarse   # [R^2*N*M,4], value range [0,1], represented by [c_x,c_y,h,w] in torch axis
         self.anchors_xyxy = bbox_xyhwToxyxy(self.anchors_xyhw)
+
+        if config.model.backbone_name == "resnet50":
+            self.cnn_prj = nn.Linear(16709, 1024)
 
         # query down heads
         self.query_down_heads = []
@@ -217,7 +231,7 @@ class ClipMatcher(nn.Module):
             nn.init.normal_(m.weight, mean=0.0, std=1e-6)
             nn.init.normal_(m.bias, mean=0.0, std=1e-6)
 
-    def extract_feature(self, x, return_h_w=False):
+    def extract_feature(self, x, return_h_w=False, isQuery=False):
         if self.backbone_name == 'dino':
             b, _, h_origin, w_origin = x.shape
             out = self.backbone.get_intermediate_layers(x, n=1)[0]
@@ -229,11 +243,16 @@ class ClipMatcher(nn.Module):
                 return out, h, w
             return out
         elif self.backbone_name == 'dinov2':
+            # [2,3,448,448]
             b, _, h_origin, w_origin = x.shape
             # b : 3 or 90, h_origin : 448, w_origin : 448
+            # 2, 1024, 768
             out = self.backbone.get_intermediate_layers(x, n=1)[0]
+            #  32, 32
             h, w = int(h_origin / self.backbone.patch_embed.patch_size[0]), int(w_origin / self.backbone.patch_embed.patch_size[1])
+            #  768
             dim = out.shape[-1]
+            # 2, 768, 32, 32
             out = out.reshape(b, h, w, dim).permute(0,3,1,2)
             # out.shape() : torch.Size([3 or 90, 768, 32, 32])
             if return_h_w:
@@ -246,6 +265,47 @@ class ClipMatcher(nn.Module):
             dim = out.shape[-1]
             out = out[:,1:].reshape(b, h, w, dim).permute(0,3,1,2)  # [b,c,h,w]
             out = F.interpolate(out, size=(16,16), mode='bilinear')
+            if return_h_w:
+                return out, h, w
+            return out
+        elif self.backbone_name == 'resnet50':
+            b, _, h_origin, w_origin = x.shape
+            h, w = 32, 32
+            # print(x.shape) # [2,3,448,448]
+            # out = self.backbone(x)
+            # batch, 2048
+
+            body = IntermediateLayerGetter(model = self.backbone.module.convnet, return_layers = {'layer1': 'out1','layer2': 'out2','layer3': 'out3','layer4': 'out4'})
+
+            out = body(x)
+            # out1 torch.Size([1, 256, 112, 112])
+            # out2 torch.Size([1, 512, 56, 56])
+            # out3 torch.Size([1, 1024, 28, 28])
+            # out4 torch.Size([1, 2048, 14, 14])
+
+            if isQuery:
+                # since query shape is not the expected shape, we need to do some extra work
+                # that is, we need to add a fc layer to reduce the channel size
+                # but, it seems to double our memory usage
+                # cnn_prj = nn.Linear(16709, 1024)
+                # out4 torch.Size([1, 2048, 14, 14])
+                # out = out['out4']
+                # 1, 768, 16709
+                pass
+            else:
+                fpn = FeaturePyramidNetwork(in_channels_list = [256, 512, 1024, 2048], out_channels = 768, extra_blocks=LastLevelMaxPool())
+                fpn.to(x.device)
+
+                out = fpn(out)
+                out = [v.view(v.shape[0], v.shape[1], -1) for _, v in out.items()]
+
+                out = torch.cat(out, dim=2)
+                # 1, 768, 16709
+                out = self.cnn_prj(out)
+
+                out = out.reshape(out.shape[0], out.shape[1], 32, 32)
+
+
             if return_h_w:
                 return out, h, w
             return out
@@ -287,11 +347,12 @@ class ClipMatcher(nn.Module):
         # get backbone features
         if fix_backbone:
             with torch.no_grad():
-                query_feat = self.extract_feature(query)
-                clip_feat = self.extract_feature(clip)
+                query_feat = self.extract_feature(query, isQuery=False)
+                clip_feat = self.extract_feature(clip, isQuery=False)
         else:
-            query_feat = self.extract_feature(query)        # [b c h w]
-            clip_feat = self.extract_feature(clip)          # (b t) c h w
+            query_feat = self.extract_feature(query, isQuery=False)        # [b c h w]
+            clip_feat = self.extract_feature(clip, isQuery=False)          # (b t) c h w
+        h, w = clip_feat.shape[-2:]
 
         if self.config.model.fpn:
             # print("[[[[[[[[[[[[[[ orginal clip_feat ]]]]]]]]]]]]]]", clip_feat.shape)

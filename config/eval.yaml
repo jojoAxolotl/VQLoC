@@ -28,7 +28,8 @@ dataset:
 
 # model config
 model:
-  backbone_name: 'dinov2'
+  backbone_name: 'resnet50'
+  # backbone_name: 'dinov2'
   backbone_type: 'vitb14'
   bakcbone_use_mae_weight: False
   fix_backbone: True
