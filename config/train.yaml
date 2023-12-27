@@ -1,6 +1,6 @@
 exp_name: 'train'
 exp_group: 'vq2d'
-output_dir: './output_lora_text/'
+output_dir: './output_lora_fpn/'
 log_dir: './log'
 workers: 16
 print_freq: 100

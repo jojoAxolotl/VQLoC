@@ -1,6 +1,6 @@
 exp_name: 'eval'
 exp_group: 'vq2d'
-output_dir: './output_lora_logs/'
+output_dir: './output_lora_text/'
 log_dir: './log'
 workers: 0
 print_freq: 100
@@ -44,7 +44,8 @@ model:
   # best checkpoint
   # cpt_path: '3j3q9qsc1kovpwfxtnsful7pvdy234q6.tar'
   # cpt_path: 'output/ego4d_egotracks/train/train/cpt_best_iou_vit_fpn.pth.tar'
-  cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  # cpt_path: 'output_only_lora/ego4d_egotracks/train/train/cpt_best_iou.pth.tar'
+  cpt_path: 'output_lora_text/ego4d_egotracks/train/train/cpt_best_iou_vit_fpn.pth.tar'
   fpn: False
   use_text_features: True
 
@@ -61,7 +62,7 @@ loss:
 # training config
 train:
   resume: True
-  batch_size: 3
+  batch_size: 1
   total_iteration: 60000
   lr: 0.0001
   weight_decay: 0.005

@@ -336,18 +336,18 @@ class ClipMatcher(nn.Module):
         # add text cross attention
         if self.config.model.use_text_features:
             self.text_feature_extractor.load_device(clip.device)
+            # for name, param in self.text_feature_extractor.model.named_parameters():
+            #     print(name, param.requires_grad)
             text_feat = self.text_feature_extractor.text_feature(text)
 
             # text_feat GOAL: [3, 512] ->  ([6, 1024, 256])
             text_feat = rearrange(text_feat.unsqueeze(1).repeat(1,t,1), 'b t c -> (b t) c')
             # [3, 512] ->  ([6, 512])
-            
             text_feat = text_feat.to(torch.float32)
             text_feat = self.text_project(text_feat)
             # [6, 512] ->  ([6, 256])
             text_feat = text_feat.unsqueeze(1).repeat(1,1,1)
             # [6, 256] ->  ([6, 1, 256])
-
             # find spatial correspondence between text-frame
             clip_feat = rearrange(clip_feat, 'b c h w -> b (h w) c')                                         # [b*t,n,c]
             for layer in self.CT_text_corr_transformer:

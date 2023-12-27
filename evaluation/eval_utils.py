@@ -32,6 +32,7 @@ def convert_annotations_to_clipwise_list(annotations):
                     "clip_uid": cuid,
                     "query_frame": q["query_frame"],
                     "visual_crop": q["visual_crop"],
+                    "object_title": q["object_title"]
                 }
                 if "response_track" in q:
                     curr_q["response_track"] = q["response_track"]
