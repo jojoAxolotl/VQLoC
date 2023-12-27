@@ -1,0 +1,3 @@
+[submodule "r3m"]
+	path = r3m
+	url = https://github.com/facebookresearch/r3m.git

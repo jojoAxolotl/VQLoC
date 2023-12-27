@@ -28,7 +28,8 @@ dataset:
 
 # model config
 model:
-  backbone_name: 'dinov2'
+  backbone_name: 'resnet50'
+  # backbone_name: 'dinov2'
   backbone_type: 'vitb14'
   bakcbone_use_mae_weight: False
   fix_backbone: True
@@ -62,7 +63,7 @@ loss:
 # training config
 train:
   resume: True
-  batch_size: 3
+  batch_size: 1
   total_iteration: 60000
   lr: 0.0001
   weight_decay: 0.005

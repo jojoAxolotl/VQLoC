@@ -68,6 +68,7 @@ config.loss.weight_bbox_ratio = 1.0
 config.loss.weight_bbox_giou = 0.1
 config.loss.weight_prob = 1.0
 config.loss.prob_bce_weight = [0.05, 0.95]
+config.loss.iou = "giou"
 
 # training config
 config.train = edict()
